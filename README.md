@@ -1,3 +1,11 @@
+:warning: This repo is deprecated now that Wyre have updated theit dapp to their V2 and managing it themselves
+
+cf. https://ledger-wyre.vercel.app
+
+This repo will be archived soon
+
+----
+
 # Platform app Wyre
 
 This is a Live App integrating the Wyre widget used to buy crypto in the Ledger Live context. As of today it is not yet integrated in the Ledger Live platform.
