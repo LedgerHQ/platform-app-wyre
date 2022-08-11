@@ -2,8 +2,6 @@
 
 cf. https://ledger-wyre.vercel.app
 
-This repo will be archived soon
-
 ----
 
 # Platform app Wyre
