@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import React, {
   useEffect,
   useRef,
@@ -5,9 +6,9 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+
 import CSSTransition from "react-transition-group/CSSTransition";
 import styled, { useTheme } from "styled-components";
-import Image from "next/image";
 
 import LedgerLiveApi from "@ledgerhq/live-app-sdk";
 import { WindowMessageTransport } from "@ledgerhq/live-app-sdk";
@@ -20,6 +21,7 @@ type WyreConfig = {
   env: string;
   accountId?: string;
   transferNotifyUrl?: string;
+  buyUrl?: string;
 };
 
 type ThemeProps = {
@@ -28,7 +30,7 @@ type ThemeProps = {
   };
 };
 
-const SUPPORTED_CURRENCIES = ["ethereum", "bitcoin"];
+const SUPPORTED_CURRENCIES = ["ethereum", "bitcoin", "polygon", "algorand", "stellar"];
 
 const WYRE_CONFIG: { [key: string]: WyreConfig } = {
   prod: {
@@ -36,14 +38,17 @@ const WYRE_CONFIG: { [key: string]: WyreConfig } = {
     accountId: "AC_UU28B4A64QA",
     transferNotifyUrl:
       "https://hooks.stitchdata.com/v1/clients/167870/token/33763f1bac7da4fe839aadc5462f7b4e41800de30080cf666fe826c0b9a1a649",
+    buyUrl: "https://pay.sendwyre.com/purchase"
   },
   staging: {
     env: "prod",
     accountId: "AC_32F8LN6LYU9", // Real prod environment, but linked to an account for testing purpose
+    buyUrl: "https://pay.sendwyre.com/purchase"
   },
   test: {
     env: "test",
-    accountId: "AC_Y2GAHJA6F9G",
+    accountId: "AC_HTQM9T3ZR3W",
+    buyUrl: "https://pay.testwyre.com/purchase"
   },
 };
 
@@ -180,53 +185,6 @@ function useDeviceToken(): [string | null, (token: any) => void] {
   return [deviceToken, updateToken];
 }
 
-const getWyre = (
-  env: string,
-  deviceToken: string,
-  accountAddress: string,
-  currency: string,
-  setIsSubmiting: (isSubmiting: boolean) => void
-) => {
-  const config = WYRE_CONFIG[env];
-  const accountId = config?.accountId;
-
-  // @ts-ignore
-  const wyreInstance = new window.Wyre({
-    env: config.env,
-    accountId,
-    transferNotifyUrl: config.transferNotifyUrl || undefined,
-    auth: {
-      type: "secretKey",
-      secretKey: deviceToken,
-    },
-    operation: {
-      type: "onramp",
-      destCurrency: currency,
-      dest: `${currency}:${accountAddress.toLowerCase()}`,
-    },
-  });
-
-  wyreInstance.on("close", (error: Error | Record<string, unknown> | null) => {
-    // When closing, it returns an empty object.
-    if (error !== null && Object.keys(error).length) {
-      console.error("error!", error);
-    } else {
-      console.log("closed!");
-    }
-    setIsSubmiting(false);
-  });
-
-  wyreInstance.on("complete", () => {
-    console.log("complete!");
-  });
-
-  wyreInstance.on("ready", () => {
-    setIsSubmiting(false);
-  });
-
-  return wyreInstance;
-};
-
 type Props = {
   accountAddress?: string;
   language?: string;
@@ -237,35 +195,27 @@ type Props = {
   cryptoAmount?: string;
 };
 
-export function WyreApp({ accountAddress, cryptoCurrencyId }: Props) {
+export function WyreApp({}: Props) {
   const { colors } = useTheme();
   const api = useRef<LedgerLiveApi | null>(null);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [deviceToken /*, updateToken*/] = useDeviceToken();
   const [isSubmiting, setIsSubmiting] = useState(false);
+  // const [accountAddress] = useState<Account[]>([]);
   // next.js gives wrong data sometimes...so...
   const env = useMemo(
-    () => new URLSearchParams(window.location.search).get("env") || "prod",
+    () => new URLSearchParams(window.location.search).get("env") || "test",
     [window.location]
   );
-
-  useEffect(() => {
-    if (deviceToken && accountAddress && cryptoCurrencyId) {
-      const wyreInstance = getWyre(
-        env,
-        deviceToken,
-        accountAddress,
-        cryptoCurrencyId,
-        setIsSubmiting
-      );
-      wyreInstance.open();
-    }
-  }, [deviceToken, accountAddress, cryptoCurrencyId]);
+  console.log(window.location);
 
   const submit = useCallback(async () => {
     if (api.current && deviceToken && currencies.length) {
       try {
         setIsSubmiting(true);
+
+        const config = WYRE_CONFIG["prod"];
+        const accountId = config?.accountId;
 
         const account = await api.current.requestAccount({
           allowAddAccount: true,
@@ -276,21 +226,29 @@ export function WyreApp({ accountAddress, cryptoCurrencyId }: Props) {
         const currency = currencies.find(
           (currency) => currency.id === account.currency
         );
+        const preSRN = currency?.ticker == 'MATIC' ? `${currency?.ticker.toLowerCase()}` : `${currency?.family}`;
+
+        const buyUrl = new URL(config.buyUrl!);
+        const queryData = {
+          'accountId': accountId!,
+          'dest': `${preSRN}:${account.address}`,
+          'destCurrency': currency?.ticker!,
+          'lockFields': "dest,destCurrency",
+          'redirectUrl': window.location.href,
+          'autoRedirect': "false",
+          'failreRedirectUrl': window.location.href}
+        for (let d in queryData) {
+          buyUrl.searchParams.append(d, queryData[d as keyof typeof queryData]);
+        }
 
         if (account.address === address && currency) {
-          getWyre(
-            env,
-            deviceToken,
-            account.address,
-            currency.ticker,
-            setIsSubmiting
-          ).open();
+          window.location.replace(buyUrl)
         }
       } catch (error) {
         setIsSubmiting(false);
       }
     }
-  }, [getWyre, env, api.current, deviceToken, currencies]);
+  }, [env, api.current, deviceToken, currencies]);
 
   useEffect(() => {
     const llapi = new LedgerLiveApi(new WindowMessageTransport());
@@ -333,21 +291,15 @@ export function WyreApp({ accountAddress, cryptoCurrencyId }: Props) {
         >
           <Panel>
             <Logo>
-              <Image src="/icons/wyre.svg" width={96} height={96} />
             </Logo>
             <Title>Wyre</Title>
             <List colors={colors}>
               <li>
-                <span>Buy Bitcoin, Ethereum and more crypto safely</span>
+                <span>Buy Bitcoin, Ethereum, Polygon, Stellar, or Algorand securely and safely</span>
               </li>
+
               <li>
-                <span>Only 🇺🇸 bank account</span>
-              </li>
-              <li>
-                <span>ACH transfer / No credit & debit cards </span>
-              </li>
-              <li>
-                <span>USD support only</span>
+                <span>Use Debit/Credit Cards or Bank Accounts</span>
               </li>
             </List>
             {/* <input type="text" value={deviceToken || ""} onChange={handleTokenChange} /> */}

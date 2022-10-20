@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import React, { useMemo } from "react";
 import { useRouter } from "next/router";
 import { AppProps } from "next/app";

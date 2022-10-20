@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
 
@@ -31,6 +32,8 @@ const Wyre = () => {
     cryptoAmount,
   } = router.query as QueryParams;
 
+
+
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
@@ -39,7 +42,7 @@ const Wyre = () => {
   return (
     <>
       <Head>
-        <script src="https://verify.sendwyre.com/js/verify-module-init.js"></script>
+        <script src="https://verify.sendwyre.com/js/verify-module-init-beta.js"></script>
       </Head>
       {mounted && (
         <WyreApp

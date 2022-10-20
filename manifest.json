@@ -1,0 +1,27 @@
+{
+  "id": "wyre-app",
+  "name": "Wyre app",
+  "url": "http://localhost:3000",
+  "homepageUrl": "https://developers.ledger.com/",
+  "icon": "",
+  "platform": "all",
+  "apiVersion": "0.0.1",
+  "manifestVersion": "1",
+  "branch": "debug",
+  "categories": ["tools"],
+  "currencies": "*",
+  "content": {
+    "shortDescription": {
+      "en": "Simple boilerplate Wyre Live App. Use at your own risk."
+    },
+    "description": {
+      "en": "Simple boilerplate Wyre Live App. Use at your own risk."
+    }
+  },
+  "permissions": [
+    {
+      "method": "*"
+    }
+  ],
+  "domains": ["https://*"]
+}
